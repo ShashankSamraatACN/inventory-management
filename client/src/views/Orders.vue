@@ -8,6 +8,43 @@
     <div v-if="loading" class="loading">{{ t('common.loading') }}</div>
     <div v-else-if="error" class="error">{{ error }}</div>
     <div v-else>
+
+      <!-- Submitted Restocking Orders section -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Submitted Restocking Orders ({{ restockingOrders.length }})</h3>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Order #</th>
+                <th>Items</th>
+                <th>Status</th>
+                <th>Order Date</th>
+                <th>Expected Delivery</th>
+                <th>Lead Time</th>
+                <th>Total Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="restockingOrders.length === 0">
+                <td colspan="7" style="text-align:center; color:#64748b;">No restocking orders submitted yet.</td>
+              </tr>
+              <tr v-for="ro in restockingOrders" :key="ro.id">
+                <td><strong>{{ ro.order_number }}</strong></td>
+                <td>{{ ro.items.length }} item{{ ro.items.length !== 1 ? 's' : '' }}</td>
+                <td><span class="badge warning">{{ ro.status }}</span></td>
+                <td>{{ formatDate(ro.order_date) }}</td>
+                <td>{{ formatDate(ro.expected_delivery) }}</td>
+                <td><span class="badge info">{{ ro.delivery_lead_time_days }} days</span></td>
+                <td><strong>${{ ro.total_value.toLocaleString() }}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="stats-grid">
         <div class="stat-card success">
           <div class="stat-label">{{ t('status.delivered') }}</div>
@@ -95,6 +132,7 @@ export default {
     const loading = ref(true)
     const error = ref(null)
     const orders = ref([])
+    const restockingOrders = ref([])
 
     // Use shared filters
     const {
@@ -109,7 +147,10 @@ export default {
       try {
         loading.value = true
         const filters = getCurrentFilters()
-        const fetchedOrders = await api.getOrders(filters)
+        const [fetchedOrders, fetchedRestocking] = await Promise.all([
+          api.getOrders(filters),
+          api.getRestockingOrders()
+        ])
 
         // Sort orders by order_date (earliest first)
         orders.value = fetchedOrders.sort((a, b) => {
@@ -117,6 +158,7 @@ export default {
           const dateB = new Date(b.order_date)
           return dateA - dateB
         })
+        restockingOrders.value = fetchedRestocking
       } catch (err) {
         error.value = 'Failed to load orders: ' + err.message
       } finally {
@@ -160,6 +202,7 @@ export default {
       loading,
       error,
       orders,
+      restockingOrders,
       getOrdersByStatus,
       getOrderStatusClass,
       formatDate,
